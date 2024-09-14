@@ -214,20 +214,13 @@
         const metadata = await getMetadata(itemRef);
         const timestamp = metadata.timeCreated; // Obtiene la fecha de creación
 
-        // Formatear la fecha
-        const options = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', timeZone: 'UTC' };
-        const dateString = new Date(timestamp).toLocaleString('es-ES', options);
-
         // Filtrar por tipo de archivo según el filtro actual
-        const isImage = metadata.contentType.startsWith('image/');
-        const isVideo = metadata.contentType.startsWith('video/');
-
         if (
             currentFilter === 'all' ||
-            (currentFilter === 'images' && isImage) ||
-            (currentFilter === 'videos' && isVideo)
+            (currentFilter === 'images' && metadata.contentType.startsWith('image/')) ||
+            (currentFilter === 'videos' && metadata.contentType.startsWith('video/'))
         ) {
-            // Verificar si el URL ya se ha agregado
+            // Verificar si el URL ya se ha agregado al conjunto
             if (!uniqueItems.has(url)) {
                 uniqueItems.add(url); // Agregar el URL al conjunto
 
@@ -237,19 +230,19 @@
                 let mediaElement;
 
                 // Determinar si el archivo es una imagen o un video
-                if (isImage) {
+                if (metadata.contentType.startsWith('image/')) {
                     mediaElement = document.createElement('img');
                     mediaElement.src = url;
                     mediaElement.alt = 'Foto subida';
-                } else if (isVideo) {
+                } else if (metadata.contentType.startsWith('video/')) {
                     mediaElement = document.createElement('video');
                     mediaElement.src = url;
                     mediaElement.controls = true; // Agregar controles al video
                     mediaElement.alt = 'Video subido';
                 }
 
-                const title = document.createElement('h3');
-                title.textContent = `Archivo guardado el ${dateString}`;
+                const title = document.createElement('h4');
+                title.textContent = `Archivo guardado el ${new Date(timestamp).toLocaleString('es-ES')}`;
 
                 const deleteButton = document.createElement('button');
                 deleteButton.classList.add('delete-btn');
@@ -266,6 +259,7 @@
 
     loader.style.display = 'none';
 }
+
 
 
 // Función para eliminar un archivo
