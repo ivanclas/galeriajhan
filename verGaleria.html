@@ -24,10 +24,10 @@
         }
 
         .filter-buttons {
-            display: flex; /* Usar flexbox */
-            justify-content: center; /* Centrar los botones */
+            display: flex;
+            justify-content: center;
             margin: 20px;
-            flex-wrap: wrap; /* Permitir que los botones se ajusten a varias líneas */
+            flex-wrap: wrap;
         }
 
         .filter-buttons button {
@@ -38,18 +38,23 @@
             padding: 10px 20px;
             cursor: pointer;
             font-size: 16px;
-            margin: 5px; /* Espacio entre botones */
-            flex: 1; /* Permitir que los botones crezcan en el espacio disponible */
-            min-width: 120px; /* Ancho mínimo para los botones */
-            transition: background-color 0.3s; /* Transición suave */
+            margin: 5px;
+            flex: 1;
+            min-width: 120px;
+            transition: background-color 0.3s;
         }
 
         .filter-buttons button:hover {
-            background-color: #0056b3; /* Cambio de color al pasar el mouse */
+            background-color: #0056b3;
         }
 
         .filter-buttons button.active {
             background-color: #0056b3;
+        }
+
+        .filter-buttons button:disabled {
+            background-color: grey;
+            cursor: not-allowed;
         }
 
         .gallery {
@@ -139,7 +144,6 @@
             background-color: #0056b3;
         }
 
-        /* Media Queries para pantallas pequeñas */
         @media (max-width: 600px) {
             h1 {
                 font-size: 28px;
@@ -148,8 +152,7 @@
             .filter-buttons button {
                 padding: 8px 16px;
                 font-size: 14px;
-                flex: 1; /* Permitir que los botones crezcan en el espacio disponible */
-                min-width: 100px; /* Ancho mínimo para los botones */
+                min-width: 100px;
             }
 
             .gallery {
@@ -177,7 +180,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
         import { getStorage, ref, listAll, getDownloadURL, deleteObject, getMetadata } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
 
-        // Configuración de Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyARefiao7-HrGUZJLNgxLZM1ouJZnf0i80",
             authDomain: "login-de3fd.firebaseapp.com",
@@ -189,120 +191,125 @@
             measurementId: "G-TMWR9JNR18"
         };
 
-        // Inicializar Firebase
         const app = initializeApp(firebaseConfig);
         const storage = getStorage(app);
+        let currentFilter = 'all';
+        let isLoading = false; // Indicador de carga
 
-        let currentFilter = 'all'; // Inicialmente mostrar todo
-
-        // Función para cargar la galería
         async function loadGallery() {
-    const galleryContainer = document.getElementById('gallery');
-    const loader = document.getElementById('loader');
+            if (isLoading) return; // Evitar carga duplicada
 
-    galleryContainer.innerHTML = ''; // Limpiar galería existente
+            isLoading = true;
+            disableButtons(true); // Desactivar botones mientras se carga
 
-    const listRef = ref(storage, 'fotos/');
-    const allItems = await listAll(listRef);
+            const galleryContainer = document.getElementById('gallery');
+            const loader = document.getElementById('loader');
 
-    const uniqueItems = new Set(); // Usar un Set para rastrear elementos únicos
+            loader.style.display = 'block';
+            galleryContainer.innerHTML = '';
 
-    for (const itemRef of allItems.items) {
-        const url = await getDownloadURL(itemRef);
+            const listRef = ref(storage, 'fotos/');
+            const allItems = await listAll(listRef);
 
-        // Obtener los metadatos del archivo
-        const metadata = await getMetadata(itemRef);
-        const timestamp = metadata.timeCreated; // Obtiene la fecha de creación
+            const uniqueItems = new Set();
 
-        // Filtrar por tipo de archivo según el filtro actual
-        if (
-            currentFilter === 'all' ||
-            (currentFilter === 'images' && metadata.contentType.startsWith('image/')) ||
-            (currentFilter === 'videos' && metadata.contentType.startsWith('video/'))
-        ) {
-            // Verificar si el URL ya se ha agregado al conjunto
-            if (!uniqueItems.has(url)) {
-                uniqueItems.add(url); // Agregar el URL al conjunto
+            for (const itemRef of allItems.items) {
+                const url = await getDownloadURL(itemRef);
+                const metadata = await getMetadata(itemRef);
+                const timestamp = metadata.timeCreated;
 
-                const galleryItem = document.createElement('div');
-                galleryItem.classList.add('gallery-item');
+                if (
+                    currentFilter === 'all' ||
+                    (currentFilter === 'images' && metadata.contentType.startsWith('image/')) ||
+                    (currentFilter === 'videos' && metadata.contentType.startsWith('video/'))
+                ) {
+                    if (!uniqueItems.has(url)) {
+                        uniqueItems.add(url);
 
-                let mediaElement;
+                        const galleryItem = document.createElement('div');
+                        galleryItem.classList.add('gallery-item');
 
-                // Determinar si el archivo es una imagen o un video
-                if (metadata.contentType.startsWith('image/')) {
-                    mediaElement = document.createElement('img');
-                    mediaElement.src = url;
-                    mediaElement.alt = 'Foto subida';
-                } else if (metadata.contentType.startsWith('video/')) {
-                    mediaElement = document.createElement('video');
-                    mediaElement.src = url;
-                    mediaElement.controls = true; // Agregar controles al video
-                    mediaElement.alt = 'Video subido';
+                        let mediaElement;
+
+                        if (metadata.contentType.startsWith('image/')) {
+                            mediaElement = document.createElement('img');
+                            mediaElement.src = url;
+                            mediaElement.alt = 'Foto subida';
+                        } else if (metadata.contentType.startsWith('video/')) {
+                            mediaElement = document.createElement('video');
+                            mediaElement.src = url;
+                            mediaElement.controls = true;
+                            mediaElement.alt = 'Video subido';
+                        }
+
+                        const title = document.createElement('h4');
+                        title.textContent = `Archivo guardado el ${new Date(timestamp).toLocaleString('es-ES')}`;
+
+                        const deleteButton = document.createElement('button');
+                        deleteButton.classList.add('delete-btn');
+                        deleteButton.textContent = 'Eliminar';
+                        deleteButton.onclick = () => deleteFile(itemRef);
+
+                        galleryItem.appendChild(mediaElement);
+                        galleryItem.appendChild(title);
+                        galleryItem.appendChild(deleteButton);
+                        galleryContainer.appendChild(galleryItem);
+                    }
                 }
+            }
 
-                const title = document.createElement('h4');
-                title.textContent = `Archivo guardado el ${new Date(timestamp).toLocaleString('es-ES')}`;
+            loader.style.display = 'none';
+            isLoading = false; // Carga completada
+            disableButtons(false); // Reactivar botones
+        }
 
-                const deleteButton = document.createElement('button');
-                deleteButton.classList.add('delete-btn');
-                deleteButton.textContent = 'Eliminar';
-                deleteButton.onclick = () => deleteFile(itemRef);
-
-                galleryItem.appendChild(mediaElement);
-                galleryItem.appendChild(title);
-                galleryItem.appendChild(deleteButton);
-                galleryContainer.appendChild(galleryItem);
+        async function deleteFile(itemRef) {
+            if (confirm("¿Estás seguro de que deseas eliminar este archivo?")) {
+                try {
+                    await deleteObject(itemRef);
+                    alert("Archivo eliminado.");
+                    loadGallery();
+                } catch (error) {
+                    console.error("Error al eliminar el archivo:", error);
+                    alert("Hubo un error al eliminar el archivo.");
+                }
             }
         }
-    }
 
-    loader.style.display = 'none';
-}
+        function setFilter(filter) {
+            if (!isLoading) {
+                currentFilter = filter;
+                document.querySelectorAll('.filter-buttons button').forEach(button => {
+                    button.classList.remove('active');
+                });
 
-
-
-// Función para eliminar un archivo
-async function deleteFile(itemRef) {
-    if (confirm("¿Estás seguro de que deseas eliminar este archivo?")) {
-        try {
-            await deleteObject(itemRef);
-            alert("Archivo eliminado.");
-            loadGallery(); // Recargar la galería después de eliminar
-        } catch (error) {
-            console.error("Error al eliminar el archivo:", error);
-            alert("Error al eliminar el archivo.");
+                document.getElementById(filter).classList.add('active');
+                loadGallery();
+            }
         }
-    }
-}
-        // Establecer el filtro
-        window.setFilter = function(filter) { // Aseguramos que la función sea global
-            currentFilter = filter;
-            document.querySelectorAll('.filter-buttons button').forEach(button => {
-                button.classList.remove('active');
-            });
-            document.querySelector(`.filter-buttons button[data-filter="${filter}"]`).classList.add('active');
-            loadGallery(); // Recargar la galería con el nuevo filtro
-        };
 
-        // Cargar la galería al iniciar
-        document.addEventListener('DOMContentLoaded', () => {
+        function disableButtons(disabled) {
+            document.querySelectorAll('.filter-buttons button').forEach(button => {
+                button.disabled = disabled;
+            });
+        }
+
+        // Asignar las funciones al objeto `window` para que sean accesibles desde el HTML
+        window.setFilter = setFilter;
+        window.onload = () => {
             loadGallery();
-        });
+        };
     </script>
 </head>
 <body>
-    <h1>Galería de Recuerdos</h1>
-
+    <h1>Recuerdos de Jhan</h1>
     <div class="filter-buttons">
-        <button data-filter="all" onclick="setFilter('all')" class="active">Ver Todo</button>
-        <button data-filter="images" onclick="setFilter('images')">Ver Fotos</button>
-        <button data-filter="videos" onclick="setFilter('videos')">Ver Videos</button>
+        <button id="all" class="active" onclick="setFilter('all')">Ver Todos</button>
+        <button id="images" onclick="setFilter('images')">Ver Fotos</button>
+        <button id="videos" onclick="setFilter('videos')">Ver Videos</button>
     </div>
 
-    <div id="loader" class="loader"></div>
+    <div id="loader" class="loader" style="display:none;"></div>
     <div id="gallery" class="gallery"></div>
-
-    <button class="float-button" onclick="location.href='index.html'">+</button>
 </body>
 </html>
