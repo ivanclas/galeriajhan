@@ -87,7 +87,7 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
 
-        .gallery-item h3 {
+        .gallery-item h4 {
             margin: 10px 0 0;
             color: #333;
             font-size: 18px;
@@ -138,6 +138,9 @@
             cursor: pointer;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             transition: background-color 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         .float-button:hover {
@@ -164,7 +167,7 @@
                 padding: 10px;
             }
 
-            .gallery-item h3 {
+            .gallery-item h4 {
                 font-size: 16px;
             }
 
@@ -276,16 +279,16 @@
             }
         }
 
-        function setFilter(filter) {
-            if (!isLoading) {
-                currentFilter = filter;
-                document.querySelectorAll('.filter-buttons button').forEach(button => {
-                    button.classList.remove('active');
-                });
-
-                document.getElementById(filter).classList.add('active');
-                loadGallery();
-            }
+        // Función setFilter definida aquí
+        window.setFilter = function(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-buttons button').forEach(button => {
+                button.classList.remove('active');
+                if (button.id === filter) {
+                    button.classList.add('active');
+                }
+            });
+            loadGallery(); // Recargar la galería con el nuevo filtro
         }
 
         function disableButtons(disabled) {
@@ -294,22 +297,31 @@
             });
         }
 
-        // Asignar las funciones al objeto `window` para que sean accesibles desde el HTML
-        window.setFilter = setFilter;
-        window.onload = () => {
-            loadGallery();
-        };
+        // Asignar evento al botón flotante
+        document.addEventListener("DOMContentLoaded", function () {
+            const floatButton = document.getElementById('floatButton');
+            floatButton.addEventListener('click', () => {
+                window.location.href = 'index.html'; // Redirigir a index.html
+            });
+
+            loadGallery(); // Cargar galería cuando se cargue la página
+        });
     </script>
 </head>
+
 <body>
     <h1>Recuerdos de Jhan</h1>
+
     <div class="filter-buttons">
-        <button id="all" class="active" onclick="setFilter('all')">Ver Todos</button>
+        <button id="all" class="active" onclick="setFilter('all')">Ver Todo</button>
         <button id="images" onclick="setFilter('images')">Ver Fotos</button>
         <button id="videos" onclick="setFilter('videos')">Ver Videos</button>
     </div>
 
-    <div id="loader" class="loader" style="display:none;"></div>
     <div id="gallery" class="gallery"></div>
+    <div id="loader" class="loader" style="display:none;"></div>
+
+    <!-- Botón flotante -->
+    <button id="floatButton" class="float-button">+</button>
 </body>
 </html>
