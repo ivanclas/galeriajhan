@@ -19,7 +19,8 @@
             padding: 30px;
             border-radius: 15px;
             box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-            width: 400px;
+            width: 90%; /* Ajustar ancho para dispositivos móviles */
+            max-width: 400px; /* Ancho máximo para dispositivos grandes */
             text-align: center;
         }
         h1 {
@@ -28,7 +29,7 @@
             margin-bottom: 20px;
         }
         input[type="file"] {
-            width: 80%;
+            width: 80%; /* Ajustar al 80% */
             padding: 12px;
             margin: 15px 0;
             border: 2px solid #ddd;
@@ -66,10 +67,53 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             margin: 5px;
         }
+        #progressBar {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            display: none; /* Ocultar inicialmente */
+            margin-top: 10px;
+        }
+        #progress {
+            height: 20px;
+            background-color: #007bff;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        /* Media Queries */
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 20px;
+            }
+            button {
+                font-size: 14px;
+            }
+            input[type="file"] {
+                width: 90%; /* Ajustar al 90% en pantallas pequeñas */
+            }
+            #selectedImages img, #selectedImages video {
+                max-width: 60px; /* Tamaño más pequeño para imágenes y videos en pantallas pequeñas */
+            }
+        }
+
+        @media (max-width: 400px) {
+            h1 {
+                font-size: 18px;
+            }
+            button {
+                font-size: 12px;
+            }
+        }
     </style>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
-        import { getStorage, ref, uploadBytes } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
 
         // Configuración de Firebase
         const firebaseConfig = {
@@ -125,14 +169,58 @@
             }
 
             const date = new Date().toISOString().replace(/:/g, '-'); // Obtener fecha en formato adecuado
+            const progressBar = document.getElementById('progressBar');
+            const progress = document.getElementById('progress');
+
+            // Desactivar botones
+            document.querySelector('button').disabled = true;
+            document.querySelectorAll('button')[1].disabled = true; // Desactivar "Ver Galería"
+
+            // Mostrar barra de progreso
+            progressBar.style.display = 'block';
+
+            const promises = []; // Para almacenar las promesas de carga
 
             for (const file of files) {
                 const fileName = `${date}-${file.name}`; // Crear nombre de archivo con fecha
                 const storageRef = ref(storage, 'fotos/' + fileName);
-                await uploadBytes(storageRef, file);
+                const uploadTask = uploadBytesResumable(storageRef, file);
+
+                // Actualizar la barra de progreso
+                uploadTask.on('state_changed', 
+                    (snapshot) => {
+                        const percentage = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        progress.style.width = percentage + '%';
+                    }, 
+                    (error) => {
+                        console.error("Error al subir el archivo: ", error);
+                        alert("Error al subir el archivo.");
+                    }, 
+                    () => {
+                        // Completar la carga y obtener la URL de descarga
+                        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                            console.log("Archivo disponible en: ", downloadURL);
+                        });
+                    }
+                );
+
+                promises.push(uploadTask); // Agregar la tarea de carga a las promesas
             }
 
-            alert("Todas las fotos y videos se han subido correctamente.");
+            // Esperar a que todas las cargas se completen
+            Promise.all(promises).then(() => {
+                // Al finalizar la carga
+                alert("Todos los archivos han sido subidos correctamente.");
+                progress.style.width = '0'; // Reiniciar barra de progreso
+                progressBar.style.display = 'none'; // Ocultar barra de progreso
+
+                // Recargar la página para permitir subir nuevo contenido
+                window.location.reload();
+            });
+
+            // Activar botones
+            document.querySelector('button').disabled = false;
+            document.querySelectorAll('button')[1].disabled = false; // Activar "Ver Galería"
         }
 
         // Función para abrir la galería en la misma ventana
@@ -152,11 +240,14 @@
         <input type="file" id="fileInput" accept="image/*,video/*" multiple onchange="previewFiles()" />
         <button onclick="uploadFiles()">Subir archivos</button>
         <button onclick="openGallery()">Ver Galería</button>
-    </div>
-    
-    <!-- Mostrar las imágenes y videos seleccionados antes de subirlos -->
-    <div id="selectedImages">
-        <h2>Previsualización:</h2>
+        
+        <!-- Barra de progreso -->
+        <div id="progressBar">
+            <div id="progress"></div>
+        </div>
+        
+        <!-- Contenedor para mostrar archivos seleccionados -->
+        <div id="selectedImages"></div>
     </div>
 </body>
 </html>
