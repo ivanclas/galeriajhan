@@ -13,7 +13,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            position: relative; /* Agregado para posicionar el botón flotante */
+            position: relative;
         }
 
         h1 {
@@ -23,9 +23,38 @@
             font-size: 36px;
         }
 
+        .filter-buttons {
+            display: flex; /* Usar flexbox */
+            justify-content: center; /* Centrar los botones */
+            margin: 20px;
+            flex-wrap: wrap; /* Permitir que los botones se ajusten a varias líneas */
+        }
+
+        .filter-buttons button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px; /* Espacio entre botones */
+            flex: 1; /* Permitir que los botones crezcan en el espacio disponible */
+            min-width: 120px; /* Ancho mínimo para los botones */
+            transition: background-color 0.3s; /* Transición suave */
+        }
+
+        .filter-buttons button:hover {
+            background-color: #0056b3; /* Cambio de color al pasar el mouse */
+        }
+
+        .filter-buttons button.active {
+            background-color: #0056b3;
+        }
+
         .gallery {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 20px;
             padding: 20px;
             max-width: 1200px;
@@ -46,7 +75,7 @@
             transform: scale(1.05);
         }
 
-        .gallery-item img {
+        .gallery-item img, .gallery-item video {
             max-width: 100%;
             height: auto;
             border-radius: 10px;
@@ -90,7 +119,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Estilos para el botón flotante */
         .float-button {
             position: fixed;
             bottom: 20px;
@@ -109,6 +137,39 @@
 
         .float-button:hover {
             background-color: #0056b3;
+        }
+
+        /* Media Queries para pantallas pequeñas */
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 28px;
+            }
+
+            .filter-buttons button {
+                padding: 8px 16px;
+                font-size: 14px;
+                flex: 1; /* Permitir que los botones crezcan en el espacio disponible */
+                min-width: 100px; /* Ancho mínimo para los botones */
+            }
+
+            .gallery {
+                padding: 10px;
+                gap: 15px;
+            }
+
+            .gallery-item {
+                padding: 10px;
+            }
+
+            .gallery-item h3 {
+                font-size: 16px;
+            }
+
+            .float-button {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
         }
     </style>
 
@@ -132,77 +193,122 @@
         const app = initializeApp(firebaseConfig);
         const storage = getStorage(app);
 
+        let currentFilter = 'all'; // Inicialmente mostrar todo
+
         // Función para cargar la galería
         async function loadGallery() {
-            const galleryContainer = document.getElementById('gallery');
-            const loader = document.getElementById('loader');
+    const galleryContainer = document.getElementById('gallery');
+    const loader = document.getElementById('loader');
 
-            const listRef = ref(storage, 'fotos/');
-            const allItems = await listAll(listRef);
+    galleryContainer.innerHTML = ''; // Limpiar galería existente
 
-            for (const itemRef of allItems.items) {
-                const url = await getDownloadURL(itemRef);
+    const listRef = ref(storage, 'fotos/');
+    const allItems = await listAll(listRef);
 
-                // Obtener los metadatos del archivo
-                const metadata = await getMetadata(itemRef);
-                const timestamp = metadata.timeCreated; // Obtiene la fecha de creación
+    const uniqueItems = new Set(); // Usar un Set para rastrear elementos únicos
 
-                // Formatear la fecha
-                const options = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', timeZone: 'UTC' };
-                const dateString = new Date(timestamp).toLocaleString('es-ES', options);
+    for (const itemRef of allItems.items) {
+        const url = await getDownloadURL(itemRef);
+
+        // Obtener los metadatos del archivo
+        const metadata = await getMetadata(itemRef);
+        const timestamp = metadata.timeCreated; // Obtiene la fecha de creación
+
+        // Formatear la fecha
+        const options = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', timeZone: 'UTC' };
+        const dateString = new Date(timestamp).toLocaleString('es-ES', options);
+
+        // Filtrar por tipo de archivo según el filtro actual
+        const isImage = metadata.contentType.startsWith('image/');
+        const isVideo = metadata.contentType.startsWith('video/');
+
+        if (
+            currentFilter === 'all' ||
+            (currentFilter === 'images' && isImage) ||
+            (currentFilter === 'videos' && isVideo)
+        ) {
+            // Verificar si el URL ya se ha agregado
+            if (!uniqueItems.has(url)) {
+                uniqueItems.add(url); // Agregar el URL al conjunto
 
                 const galleryItem = document.createElement('div');
                 galleryItem.classList.add('gallery-item');
 
-                const img = document.createElement('img');
-                img.src = url;
-                img.alt = 'Foto subida';
+                let mediaElement;
+
+                // Determinar si el archivo es una imagen o un video
+                if (isImage) {
+                    mediaElement = document.createElement('img');
+                    mediaElement.src = url;
+                    mediaElement.alt = 'Foto subida';
+                } else if (isVideo) {
+                    mediaElement = document.createElement('video');
+                    mediaElement.src = url;
+                    mediaElement.controls = true; // Agregar controles al video
+                    mediaElement.alt = 'Video subido';
+                }
 
                 const title = document.createElement('h3');
-                title.textContent = `Foto guardada el ${dateString}`;
+                title.textContent = `Archivo guardado el ${dateString}`;
 
                 const deleteButton = document.createElement('button');
                 deleteButton.classList.add('delete-btn');
                 deleteButton.textContent = 'Eliminar';
-                deleteButton.onclick = () => deletePhoto(itemRef);
+                deleteButton.onclick = () => deleteFile(itemRef);
 
-                galleryItem.appendChild(img);
+                galleryItem.appendChild(mediaElement);
                 galleryItem.appendChild(title);
                 galleryItem.appendChild(deleteButton);
                 galleryContainer.appendChild(galleryItem);
             }
-
-            loader.style.display = 'none';
         }
+    }
 
-        // Función para eliminar una foto
-        async function deletePhoto(itemRef) {
-            const confirmed = confirm("¿Estás seguro de que deseas eliminar esta foto?");
-            if (!confirmed) return;
+    loader.style.display = 'none';
+}
 
-            try {
-                await deleteObject(itemRef);
-                alert("Foto eliminada correctamente.");
-                location.reload(); // Recargar la página para actualizar la galería
-            } catch (error) {
-                console.error("Error al eliminar la foto:", error);
-                alert("No se pudo eliminar la foto.");
-            }
+
+// Función para eliminar un archivo
+async function deleteFile(itemRef) {
+    if (confirm("¿Estás seguro de que deseas eliminar este archivo?")) {
+        try {
+            await deleteObject(itemRef);
+            alert("Archivo eliminado.");
+            loadGallery(); // Recargar la galería después de eliminar
+        } catch (error) {
+            console.error("Error al eliminar el archivo:", error);
+            alert("Error al eliminar el archivo.");
         }
+    }
+}
+        // Establecer el filtro
+        window.setFilter = function(filter) { // Aseguramos que la función sea global
+            currentFilter = filter;
+            document.querySelectorAll('.filter-buttons button').forEach(button => {
+                button.classList.remove('active');
+            });
+            document.querySelector(`.filter-buttons button[data-filter="${filter}"]`).classList.add('active');
+            loadGallery(); // Recargar la galería con el nuevo filtro
+        };
 
-        window.onload = loadGallery;
+        // Cargar la galería al iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            loadGallery();
+        });
     </script>
 </head>
 <body>
-    <h1>Recuerdos de Jhan</h1>
+    <h1>Galería de Recuerdos</h1>
 
-    <!-- Contenedor de galería -->
+    <div class="filter-buttons">
+        <button data-filter="all" onclick="setFilter('all')" class="active">Ver Todo</button>
+        <button data-filter="images" onclick="setFilter('images')">Ver Fotos</button>
+        <button data-filter="videos" onclick="setFilter('videos')">Ver Videos</button>
+    </div>
+
+    <div id="loader" class="loader"></div>
     <div id="gallery" class="gallery"></div>
 
-    <!-- Cargador (Loader) mientras se cargan las fotos -->
-    <div id="loader" class="loader"></div>
-
-    <!-- Botón flotante que lleva al index.html -->
-    <button class="float-button" onclick="window.location.href='index.html'">🏠</button>
+    <button class="float-button" onclick="location.href='index.html'">+</button>
 </body>
 </html>
