@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recuerdos de Jhan</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative; /* Agregado para posicionar el botón flotante */
+        }
+
+        h1 {
+            margin-top: 20px;
+            color: #007bff;
+            text-align: center;
+            font-size: 36px;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .gallery-item {
+            background-color: white;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+            position: relative;
+        }
+
+        .gallery-item:hover {
+            transform: scale(1.05);
+        }
+
+        .gallery-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .gallery-item h3 {
+            margin: 10px 0 0;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .delete-btn:hover {
+            background-color: darkred;
+        }
+
+        .loader {
+            margin-top: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Estilos para el botón flotante */
+        .float-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s;
+        }
+
+        .float-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+        import { getStorage, ref, listAll, getDownloadURL, deleteObject, getMetadata } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
+
+        // Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyARefiao7-HrGUZJLNgxLZM1ouJZnf0i80",
+            authDomain: "login-de3fd.firebaseapp.com",
+            databaseURL: "https://login-de3fd-default-rtdb.firebaseio.com",
+            projectId: "login-de3fd",
+            storageBucket: "login-de3fd.appspot.com",
+            messagingSenderId: "1064113669692",
+            appId: "1:1064113669692:web:c45b68b5a8a519536f2539",
+            measurementId: "G-TMWR9JNR18"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const storage = getStorage(app);
+
+        // Función para cargar la galería
+        async function loadGallery() {
+            const galleryContainer = document.getElementById('gallery');
+            const loader = document.getElementById('loader');
+
+            const listRef = ref(storage, 'fotos/');
+            const allItems = await listAll(listRef);
+
+            for (const itemRef of allItems.items) {
+                const url = await getDownloadURL(itemRef);
+
+                // Obtener los metadatos del archivo
+                const metadata = await getMetadata(itemRef);
+                const timestamp = metadata.timeCreated; // Obtiene la fecha de creación
+
+                // Formatear la fecha
+                const options = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', timeZone: 'UTC' };
+                const dateString = new Date(timestamp).toLocaleString('es-ES', options);
+
+                const galleryItem = document.createElement('div');
+                galleryItem.classList.add('gallery-item');
+
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = 'Foto subida';
+
+                const title = document.createElement('h3');
+                title.textContent = `Foto guardada el ${dateString}`;
+
+                const deleteButton = document.createElement('button');
+                deleteButton.classList.add('delete-btn');
+                deleteButton.textContent = 'Eliminar';
+                deleteButton.onclick = () => deletePhoto(itemRef);
+
+                galleryItem.appendChild(img);
+                galleryItem.appendChild(title);
+                galleryItem.appendChild(deleteButton);
+                galleryContainer.appendChild(galleryItem);
+            }
+
+            loader.style.display = 'none';
+        }
+
+        // Función para eliminar una foto
+        async function deletePhoto(itemRef) {
+            const confirmed = confirm("¿Estás seguro de que deseas eliminar esta foto?");
+            if (!confirmed) return;
+
+            try {
+                await deleteObject(itemRef);
+                alert("Foto eliminada correctamente.");
+                location.reload(); // Recargar la página para actualizar la galería
+            } catch (error) {
+                console.error("Error al eliminar la foto:", error);
+                alert("No se pudo eliminar la foto.");
+            }
+        }
+
+        window.onload = loadGallery;
+    </script>
+</head>
+<body>
+    <h1>Recuerdos de Jhan</h1>
+
+    <!-- Contenedor de galería -->
+    <div id="gallery" class="gallery"></div>
+
+    <!-- Cargador (Loader) mientras se cargan las fotos -->
+    <div id="loader" class="loader"></div>
+
+    <!-- Botón flotante que lleva al index.html -->
+    <button class="float-button" onclick="window.location.href='index.html'">🏠</button>
+</body>
+</html>
