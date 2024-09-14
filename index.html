@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subir Fotos a Firebase</title>
+    <title>Subir Fotos y Videos a Firebase</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -59,7 +59,7 @@
             flex-wrap: wrap;
             justify-content: center;
         }
-        #selectedImages img {
+        #selectedImages img, #selectedImages video {
             max-width: 80px; /* Tamaño reducido para las imágenes */
             height: auto;
             border-radius: 10px;
@@ -69,7 +69,7 @@
     </style>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
+        import { getStorage, ref, uploadBytes } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
 
         // Configuración de Firebase
         const firebaseConfig = {
@@ -87,25 +87,32 @@
         const app = initializeApp(firebaseConfig);
         const storage = getStorage(app);
 
-        // Función para mostrar las imágenes seleccionadas antes de subirlas
-        function previewImages() {
+        // Función para mostrar las imágenes y videos seleccionados antes de subirlos
+        function previewFiles() {
             const files = document.getElementById('fileInput').files;
-            const selectedImagesContainer = document.getElementById('selectedImages');
-            selectedImagesContainer.innerHTML = ""; // Limpiar imágenes anteriores
+            const selectedFilesContainer = document.getElementById('selectedImages');
+            selectedFilesContainer.innerHTML = ""; // Limpiar archivos anteriores
 
             if (files.length > 0) {
-                selectedImagesContainer.style.display = 'flex'; // Mostrar contenedor
+                selectedFilesContainer.style.display = 'flex'; // Mostrar contenedor
                 Array.from(files).forEach(file => {
                     const reader = new FileReader();
                     reader.onload = function(e) {
-                        const img = document.createElement('img');
-                        img.src = e.target.result;
-                        selectedImagesContainer.appendChild(img);
+                        if (file.type.startsWith('image/')) {
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            selectedFilesContainer.appendChild(img);
+                        } else if (file.type.startsWith('video/')) {
+                            const video = document.createElement('video');
+                            video.src = e.target.result;
+                            video.controls = true; // Agregar controles al video
+                            selectedFilesContainer.appendChild(video);
+                        }
                     };
                     reader.readAsDataURL(file);
                 });
             } else {
-                selectedImagesContainer.style.display = 'none'; // Ocultar si no hay archivos
+                selectedFilesContainer.style.display = 'none'; // Ocultar si no hay archivos
             }
         }
 
@@ -125,7 +132,7 @@
                 await uploadBytes(storageRef, file);
             }
 
-            alert("Todas las fotos se han subido correctamente.");
+            alert("Todas las fotos y videos se han subido correctamente.");
         }
 
         // Función para abrir la galería en la misma ventana
@@ -136,18 +143,18 @@
         // Exponer funciones
         window.uploadFiles = uploadFiles;
         window.openGallery = openGallery;
-        window.previewImages = previewImages;
+        window.previewFiles = previewFiles;
     </script>
 </head>
 <body>
     <div class="container">
-        <h1>Sube tus fotos</h1>
-        <input type="file" id="fileInput" accept="image/*" multiple onchange="previewImages()" />
-        <button onclick="uploadFiles()">Subir fotos</button>
+        <h1>Sube tus fotos y videos</h1>
+        <input type="file" id="fileInput" accept="image/*,video/*" multiple onchange="previewFiles()" />
+        <button onclick="uploadFiles()">Subir archivos</button>
         <button onclick="openGallery()">Ver Galería</button>
     </div>
     
-    <!-- Mostrar las imágenes seleccionadas antes de subirlas -->
+    <!-- Mostrar las imágenes y videos seleccionados antes de subirlos -->
     <div id="selectedImages">
         <h2>Previsualización:</h2>
     </div>
